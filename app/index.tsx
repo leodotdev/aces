@@ -1,123 +1,155 @@
-import React, { useState } from "react";
-import { Alert, GestureResponderEvent } from "react-native";
+import React, { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Alert,
+  View,
+} from "react-native";
 import { Box } from "@/components/ui/box";
 import { VStack } from "@/components/ui/vstack";
 import { Heading } from "@/components/ui/heading";
 import { Input, InputField } from "@/components/ui/input";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
-import { supabase } from "@/utils/supabase"; // Import our Supabase client
 import { cssInterop } from "nativewind";
+import { queryClaudeForJSON } from "@/utils/claude";
+import { loadEnvVars } from "@/utils/env";
+import { ResponseCard } from "@/components/custom/ResponseCard";
 
-// Apply nativewind styling to SafeAreaView
+// Apply nativewind styling to SafeAreaView and other components
 cssInterop(SafeAreaView, { className: "style" });
+cssInterop(ScrollView, { className: "style" });
+cssInterop(KeyboardAvoidingView, { className: "style" });
 
-export default function AuthScreen() {
-  // State variables to hold email, password, and loading status
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [signingIn, setSigningIn] = useState(false);
-  const [signingUp, setSigningUp] = useState(false);
+export default function HomeScreen() {
+  // State variables for prompt input and results
+  const [prompt, setPrompt] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [isEnvLoaded, setIsEnvLoaded] = useState(false);
 
-  // Function to handle signing in
-  async function signInWithEmail(e?: GestureResponderEvent) {
-    if (e) e.preventDefault(); // Prevent default form submission
-    setSigningIn(true); // Start loading indicator
-    // Call Supabase sign in function
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
+  // Load environment variables on component mount
+  useEffect(() => {
+    async function loadEnvironment() {
+      try {
+        const loaded = await loadEnvVars();
+        setIsEnvLoaded(loaded);
 
-    if (error) {
-      // Show an alert if there's an error
-      Alert.alert("Sign In Error", error.message);
+        if (!loaded) {
+          console.warn("Failed to load environment variables");
+        }
+      } catch (error) {
+        console.error("Error loading environment:", error);
+      }
     }
-    // If successful, the auth state change listener (which we'll set up later)
-    // will navigate the user to the main app screen.
-    setSigningIn(false); // Stop loading indicator
-  }
 
-  // Function to handle signing up
-  async function signUpWithEmail(e?: GestureResponderEvent) {
-    if (e) e.preventDefault(); // Prevent default form submission
-    setSigningUp(true); // Start loading indicator
-    // Call Supabase sign up function
-    const { error } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-    });
+    loadEnvironment();
+  }, []);
 
-    if (error) {
-      // Show an alert if there's an error
-      Alert.alert("Sign Up Error", error.message);
-    } else {
-      // Optionally, show a success message or confirmation instruction
-      Alert.alert(
-        "Sign Up Success",
-        "Please check your email for verification!"
-      );
+  // Function to handle submitting the prompt to Claude
+  async function handleSubmitPrompt() {
+    if (!prompt.trim() || isLoading) return;
+
+    setIsLoading(true);
+
+    try {
+      const result = await queryClaudeForJSON(prompt);
+
+      if (result.error) {
+        // Add error message as a response
+        setResponses((prev) => [
+          ...prev,
+          { error: true, message: result.error },
+        ]);
+
+        // Show alert for API key issues
+        if (result.error.includes("API key")) {
+          Alert.alert(
+            "API Key Issue",
+            "There's a problem with your Claude API key. Make sure it's set correctly in .env.local"
+          );
+        }
+      } else if (result.content) {
+        // Add the JSON response to our list
+        setResponses((prev) => [
+          ...prev,
+          { ...result.content, timestamp: new Date().toISOString() },
+        ]);
+      }
+    } catch (error: any) {
+      console.error("Error processing prompt:", error);
+      setResponses((prev) => [
+        ...prev,
+        { error: true, message: error.message || "An unknown error occurred" },
+      ]);
+    } finally {
+      setIsLoading(false);
+      setPrompt(""); // Clear input after submission
     }
-    setSigningUp(false); // Stop loading indicator
   }
 
   return (
-    // Use SafeAreaView to avoid notches and system UI elements
-    <SafeAreaView className="flex-1 bg-background-0">
-      {/* Center the content vertically and horizontally */}
-      <VStack space="md" className="flex-1 justify-center items-center p-6">
-        <Heading size="2xl" className="mb-4">
-          Welcome!
-        </Heading>
-        <Text className="mb-6">Sign in or create an account.</Text>
+    <KeyboardAvoidingView
+      className="flex-1 bg-background-0"
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <SafeAreaView className="flex-1" edges={["top"]}>
+        {/* Header */}
+        <Box className="px-4 py-3 border-b border-gray-200">
+          <Heading size="xl">Ask Claude</Heading>
+          <Text className="text-gray-500">
+            Ask anything to get JSON responses
+          </Text>
+        </Box>
 
-        {/* Input container */}
-        <VStack space="md" className="w-full max-w-sm">
-          <Input>
-            <InputField
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail} // Update email state on change
-              autoCapitalize="none" // Don't automatically capitalize email
-              keyboardType="email-address" // Show email keyboard layout
-            />
-          </Input>
-          <Input>
-            <InputField
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword} // Update password state on change
-              secureTextEntry // Hide password characters
-            />
-          </Input>
-        </VStack>
+        {/* Body - Scrollable content area */}
+        <ScrollView
+          className="flex-1 px-4"
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          {responses.length === 0 ? (
+            <Box className="items-center justify-center py-20">
+              <Text className="text-gray-500 text-center">
+                Ask a question to see Claude's response here
+              </Text>
+            </Box>
+          ) : (
+            <VStack space="md" className="py-4">
+              {responses.map((response, index) => (
+                <ResponseCard key={index} data={response} />
+              ))}
+            </VStack>
+          )}
+        </ScrollView>
 
-        {/* Button container */}
-        <VStack space="md" className="w-full max-w-sm mt-6">
-          <Box>
+        {/* Footer - Sticky input area */}
+        <SafeAreaView
+          edges={["bottom"]}
+          className="border-t border-gray-200 bg-white"
+        >
+          <Box className="p-4 flex-row">
+            <Input className="flex-1 mr-2">
+              <InputField
+                placeholder="Ask Claude for data..."
+                value={prompt}
+                onChangeText={setPrompt}
+                multiline
+                numberOfLines={1}
+              />
+            </Input>
             <Button
-              onPress={signInWithEmail}
-              disabled={signingIn || signingUp} // Disable when either action is loading
-              action="primary" // Style as primary button
+              onPress={handleSubmitPrompt}
+              disabled={isLoading || !prompt.trim()}
+              action="primary"
               variant="solid"
             >
-              {/* Show loading text or regular text */}
-              <ButtonText>{signingIn ? "Signing In..." : "Sign In"}</ButtonText>
+              <ButtonText>{isLoading ? "Thinking..." : "Ask"}</ButtonText>
             </Button>
           </Box>
-          <Box>
-            <Button
-              onPress={signUpWithEmail}
-              disabled={signingUp || signingIn} // Disable when either action is loading
-              action="secondary" // Style as secondary button
-              variant="outline"
-            >
-              <ButtonText>{signingUp ? "Signing Up..." : "Sign Up"}</ButtonText>
-            </Button>
-          </Box>
-        </VStack>
-      </VStack>
-    </SafeAreaView>
+        </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
