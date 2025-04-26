@@ -10,7 +10,10 @@ import { StatusBar } from "expo-status-bar";
 import { supabase } from "@/utils/supabase";
 import { Session } from "@supabase/supabase-js";
 
-export const ColorModeContext = createContext({});
+export const ColorModeContext = createContext({
+  colorMode: "light",
+  handleColorMode: () => {},
+});
 
 const CustomBackButton = () => {
   const router = useRouter();
@@ -101,16 +104,14 @@ export default function RootLayout() {
         style="auto"
         backgroundColor={`${colorMode == "light" ? "#F6F6F6" : "#272625"}`}
       />
-      <ColorModeContext.Provider value={{ colorMode }}>
+      <ColorModeContext.Provider value={{ colorMode, handleColorMode }}>
         <GluestackUIProvider mode={colorMode}>
           <Stack screenOptions={{ animation: "slide_from_right" }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen
               name="(auth)/home"
               options={{
-                headerTitle: "Home",
-                headerTintColor: colorMode === "light" ? "#000" : "#fff",
-                headerStyle: styles.header,
+                headerShown: false,
               }}
             />
             <Stack.Screen
@@ -208,16 +209,6 @@ export default function RootLayout() {
             />
             <Stack.Screen name="vstack" options={getHeaderOptions("VStack")} />
           </Stack>
-
-          <Fab
-            className="bottom-10 sm:right-10 right-6 p-4 z-0"
-            onPress={handleColorMode}
-          >
-            <Icon
-              as={colorMode === "light" ? SunIcon : MoonIcon}
-              className="text-typography-0"
-            />
-          </Fab>
         </GluestackUIProvider>
       </ColorModeContext.Provider>
     </>

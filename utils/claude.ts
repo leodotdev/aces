@@ -36,10 +36,10 @@ export async function queryClaudeForJSON(prompt: string): Promise<ClaudeResponse
         messages: [
           {
             role: 'user',
-            content: `${prompt}\n\nPlease format your response as valid JSON only. No markdown, no explanations.`
+            content: `${prompt}\n\nPlease format your response as valid JSON only. No markdown, no explanations. Always include a "citation" field with source information when applicable.`
           }
         ],
-        system: "You are a helpful AI assistant that provides information in JSON format only. No explanations or markdown."
+        system: "You are a helpful AI assistant that provides information in JSON format only. No explanations or markdown. Always include a 'citation' field in your JSON response with source information when providing factual information. The citation should include source title, author (if available), publication date (if available), and URL (if available)."
       })
     });
 

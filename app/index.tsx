@@ -17,6 +17,7 @@ import { cssInterop } from "nativewind";
 import { queryClaudeForJSON } from "@/utils/claude";
 import { loadEnvVars } from "@/utils/env";
 import { ResponseCard } from "@/components/custom/ResponseCard";
+import { HamburgerMenu } from "@/components/custom/HamburgerMenu";
 
 // Apply nativewind styling to SafeAreaView and other components
 cssInterop(SafeAreaView, { className: "style" });
@@ -97,11 +98,9 @@ export default function HomeScreen() {
     >
       <SafeAreaView className="flex-1" edges={["top"]}>
         {/* Header */}
-        <Box className="px-4 py-3 border-b border-gray-200">
+        <Box className="px-4 py-3 border-b border-gray-200 flex-row justify-between items-center">
           <Heading size="xl">Ask Claude</Heading>
-          <Text className="text-gray-500">
-            Ask anything to get JSON responses
-          </Text>
+          <HamburgerMenu />
         </Box>
 
         {/* Body - Scrollable content area */}
@@ -112,7 +111,8 @@ export default function HomeScreen() {
           {responses.length === 0 ? (
             <Box className="items-center justify-center py-20">
               <Text className="text-gray-500 text-center">
-                Ask a question to see Claude's response here
+                Ask a question to see Claude's response with source citations
+                here
               </Text>
             </Box>
           ) : (

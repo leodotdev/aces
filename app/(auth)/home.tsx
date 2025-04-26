@@ -17,7 +17,7 @@ import { cssInterop } from "nativewind";
 import { queryClaudeForJSON } from "@/utils/claude";
 import { loadEnvVars } from "@/utils/env";
 import { ResponseCard } from "@/components/custom/ResponseCard";
-import { supabase } from "@/utils/supabase"; // Import Supabase client
+import { HamburgerMenu } from "@/components/custom/HamburgerMenu";
 
 // Apply nativewind styling to SafeAreaView and other components
 cssInterop(SafeAreaView, { className: "style" });
@@ -30,7 +30,6 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [responses, setResponses] = useState<any[]>([]);
   const [isEnvLoaded, setIsEnvLoaded] = useState(false);
-  const [signOutLoading, setSignOutLoading] = useState(false);
 
   // Load environment variables on component mount
   useEffect(() => {
@@ -49,18 +48,6 @@ export default function HomeScreen() {
 
     loadEnvironment();
   }, []);
-
-  // Function to handle signing out
-  async function handleSignOut() {
-    setSignOutLoading(true);
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert("Sign Out Error", error.message);
-      setSignOutLoading(false);
-    }
-    // If successful, the onAuthStateChange listener in _layout.tsx
-    // will detect the change and navigate the user to the auth screen.
-  }
 
   // Function to handle submitting the prompt to Claude
   async function handleSubmitPrompt() {
@@ -115,20 +102,10 @@ export default function HomeScreen() {
           <Box>
             <Heading size="xl">Ask Claude</Heading>
             <Text className="text-gray-500">
-              Ask anything to get JSON responses
+              Ask anything to get JSON responses with citations
             </Text>
           </Box>
-          <Button
-            onPress={handleSignOut}
-            disabled={signOutLoading}
-            action="negative"
-            variant="outline"
-            size="sm"
-          >
-            <ButtonText>
-              {signOutLoading ? "Signing Out..." : "Sign Out"}
-            </ButtonText>
-          </Button>
+          <HamburgerMenu />
         </Box>
 
         {/* Body - Scrollable content area */}
@@ -139,7 +116,8 @@ export default function HomeScreen() {
           {responses.length === 0 ? (
             <Box className="items-center justify-center py-20">
               <Text className="text-gray-500 text-center">
-                Ask a question to see Claude's response here
+                Ask a question to see Claude's response with source citations
+                here
               </Text>
             </Box>
           ) : (

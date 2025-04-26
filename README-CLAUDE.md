@@ -27,7 +27,7 @@ Once configured, you can:
 2. Tap "Ask" to send the prompt to Claude
 3. The response will be displayed as a card in the scrollable area
 
-The response is formatted as JSON, which is perfect for structured data presentation.
+The response is formatted as JSON, which is perfect for structured data presentation. When Claude provides factual information, it will include citation data in a special "citation" field with source information such as titles, authors, publication dates, and URLs when available.
 
 ## Troubleshooting
 
