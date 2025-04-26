@@ -1,14 +1,16 @@
-import React from "react";
+import React, { useState, useEffect, createContext } from "react";
 import "../global.css";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { Icon, ChevronLeftIcon, SunIcon, MoonIcon } from "@/components/ui/icon";
 import { StyleSheet, Platform } from "react-native";
 import { Fab } from "@/components/ui/fab";
 import { Pressable } from "@/components/ui/pressable";
 import { StatusBar } from "expo-status-bar";
+import { supabase } from "@/utils/supabase";
+import { Session } from "@supabase/supabase-js";
 
-export const ColorModeContext = React.createContext({});
+export const ColorModeContext = createContext({});
 
 const CustomBackButton = () => {
   const router = useRouter();
@@ -25,8 +27,25 @@ const CustomBackButton = () => {
   );
 };
 
+const useProtectedRoute = (session: Session | null) => {
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    const inAuthGroup = segments[0] === "(auth)";
+
+    if (!session && inAuthGroup) {
+      router.replace("/");
+    } else if (session && !inAuthGroup) {
+      router.replace("/(auth)/home");
+    }
+  }, [session, segments, router]);
+};
+
 export default function RootLayout() {
-  const [colorMode, setColorMode] = React.useState<"light" | "dark">("light");
+  const [colorMode, setColorMode] = useState<"light" | "dark">("light");
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const styles = StyleSheet.create({
     header: {
@@ -51,16 +70,60 @@ export default function RootLayout() {
     }),
   });
 
+  useEffect(() => {
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useProtectedRoute(session);
+
+  if (authLoading) {
+    return null;
+  }
+
   return (
     <>
       <StatusBar
-        style="auto" //android
+        style="auto"
         backgroundColor={`${colorMode == "light" ? "#F6F6F6" : "#272625"}`}
       />
       <ColorModeContext.Provider value={{ colorMode }}>
         <GluestackUIProvider mode={colorMode}>
           <Stack screenOptions={{ animation: "slide_from_right" }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="(auth)/home"
+              options={{
+                headerTitle: "Home",
+                headerTintColor: colorMode === "light" ? "#000" : "#fff",
+                headerStyle: styles.header,
+              }}
+            />
+            <Stack.Screen
+              name="kitchensink"
+              options={{
+                headerTitle: "Kitchen Sink",
+                headerTintColor: colorMode === "light" ? "#000" : "#fff",
+                headerStyle: styles.header,
+                ...(Platform.OS !== "android" && {
+                  headerLeft: () => <CustomBackButton />,
+                }),
+              }}
+            />
             <Stack.Screen name="+not-found" options={{ headerShown: false }} />
             <Stack.Screen
               name="accordion"
